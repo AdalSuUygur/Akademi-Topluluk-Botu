@@ -207,5 +207,7 @@ marimo/_lsp/
 __marimo__/
 
 
-*.db/data/*.index
-/data/*.pkl
+# Cemil Bot - Yerel Veriler
+data/
+knowledge_base/
+logs/
