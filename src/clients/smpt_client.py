@@ -69,9 +69,17 @@ class SMTPClient(metaclass=SingletonMeta):
 
     def send_request_notification(self, requester_slack_id: str, request_content: str):
         """
-        Kullanıcının Slack üzerinden yaptığı talebi yöneticiye e-posta ile bildirir.
+        Kullanıcının Slack üzerinden yaptığı talebi yöneticilere e-posta ile bildirir.
         """
-        admin_email = os.environ.get("ADMIN_EMAIL", self.sender_email)
+        admin_emails_str = os.environ.get("ADMIN_EMAIL", "")
+        # Virgülle ayrılmış birden fazla emaili listeye çevir
+        admin_emails = [email.strip() for email in admin_emails_str.split(",") if email.strip()]
+        
+        if not admin_emails:
+            # Eğer admin emaili yoksa, gönderen (bot) emaili varsayılan alıcı yap
+            admin_emails = [self.sender_email]
+            logger.warning("[!] ADMIN_EMAIL tanımlanmamış, bildirim botun kendi adresine gönderiliyor.")
+
         subject = "Cemil Bot - Yeni Kullanıcı Talebi"
         body = f"""
         <h3>Yeni Slack Talebi</h3>
@@ -82,4 +90,4 @@ class SMTPClient(metaclass=SingletonMeta):
         </blockquote>
         <p><i>Bu e-posta Cemil Bot tarafından otomatik oluşturulmuştur.</i></p>
         """
-        return self.send_email(admin_email, subject, body, is_html=True)
+        return self.send_email(admin_emails, subject, body, is_html=True)
