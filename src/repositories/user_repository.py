@@ -40,3 +40,17 @@ class UserRepository(BaseRepository):
         except Exception as e:
             logger.error(f"[X] UserRepository.update_by_slack_id hatası: {e}")
             raise DatabaseError(str(e))
+
+    def get_users_with_birthday_today(self) -> list:
+        """Bugün doğum günü olan kullanıcıları listeler."""
+        try:
+            with self.db_client.get_connection() as conn:
+                cursor = conn.cursor()
+                # SQLite'da ay ve gün kontrolü: strftime('%m-%d', birthday)
+                sql = f"SELECT * FROM {self.table_name} WHERE strftime('%m-%d', birthday) = strftime('%m-%d', 'now')"
+                cursor.execute(sql)
+                rows = cursor.fetchall()
+                return [dict(row) for row in rows]
+        except Exception as e:
+            logger.error(f"[X] UserRepository.get_users_with_birthday_today hatası: {e}")
+            raise DatabaseError(str(e))
