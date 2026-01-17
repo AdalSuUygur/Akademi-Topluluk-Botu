@@ -29,6 +29,10 @@ class CoffeeMatchError(CemilBotError):
     """Kahve eşleşme motorunda oluşan hatalar."""
     pass
 
+class SMTPClientError(CemilBotError):
+    """SMTP/E-posta işlemleri sırasında oluşan hatalar."""
+    pass
+
 class PermissionDeniedError(CemilBotError):
     """Yetkisiz erişim denemelerinde fırlatılan hata."""
     def __init__(self, message="Bu işlem için yetkiniz bulunmuyor.", extra=None):
