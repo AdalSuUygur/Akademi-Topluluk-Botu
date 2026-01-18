@@ -212,6 +212,22 @@ class DatabaseClient(metaclass=SingletonMeta):
                     cursor.execute("ALTER TABLE help_requests ADD COLUMN help_channel_id TEXT")
                     logger.info("[+] help_channel_id kolonu eklendi.")
                 
+                # İletişim İstekleri Tablosu (Communication Requests)
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS communication_requests (
+                        id TEXT PRIMARY KEY,
+                        requester_id TEXT NOT NULL,
+                        topic TEXT NOT NULL,
+                        description TEXT NOT NULL,
+                        status TEXT DEFAULT 'open',
+                        channel_id TEXT,
+                        communication_channel_id TEXT,
+                        message_ts TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        closed_at TIMESTAMP
+                    )
+                """)
+                
                 conn.commit()
                 logger.debug("[i] Veritabanı tabloları kontrol edildi.")
         except sqlite3.Error as e:
