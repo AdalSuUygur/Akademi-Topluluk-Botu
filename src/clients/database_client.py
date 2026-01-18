@@ -197,11 +197,20 @@ class DatabaseClient(metaclass=SingletonMeta):
                         status TEXT DEFAULT 'open',
                         helper_id TEXT,
                         channel_id TEXT,
+                        help_channel_id TEXT,
                         message_ts TEXT,
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         resolved_at TIMESTAMP
                     )
                 """)
+                
+                # Migration: help_channel_id kolonu yoksa ekle
+                cursor.execute("PRAGMA table_info(help_requests)")
+                columns = [column[1] for column in cursor.fetchall()]
+                if 'help_channel_id' not in columns:
+                    logger.info("[i] help_channel_id kolonu ekleniyor...")
+                    cursor.execute("ALTER TABLE help_requests ADD COLUMN help_channel_id TEXT")
+                    logger.info("[+] help_channel_id kolonu eklendi.")
                 
                 conn.commit()
                 logger.debug("[i] Veritabanı tabloları kontrol edildi.")

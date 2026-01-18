@@ -3,11 +3,12 @@ Topluluk yardımlaşma servisi.
 """
 
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from src.core.logger import logger
 from src.core.exceptions import CemilBotError
-from src.commands import ChatManager, ConversationManager
+from src.commands import ChatManager, ConversationManager, UserManager
 from src.repositories import HelpRepository, UserRepository
+from src.clients import CronClient
 
 
 class HelpService:
@@ -19,13 +20,42 @@ class HelpService:
         self,
         chat_manager: ChatManager,
         conv_manager: ConversationManager,
+        user_manager: UserManager,
         help_repo: HelpRepository,
-        user_repo: UserRepository
+        user_repo: UserRepository,
+        cron_client: Optional[CronClient] = None
     ):
         self.chat = chat_manager
         self.conv = conv_manager
+        self.user_manager = user_manager
         self.repo = help_repo
         self.user_repo = user_repo
+        self.cron_client = cron_client
+    
+    def _get_workspace_owner(self) -> Optional[str]:
+        """Workspace owner veya admin kullanıcıyı bulur."""
+        try:
+            # Tüm kullanıcıları listele
+            response = self.user_manager.list_users(limit=1000)
+            if response.get("ok"):
+                members = response.get("members", [])
+                # Önce owner'ı bul
+                for member in members:
+                    if member.get("is_owner", False):
+                        owner_id = member.get("id")
+                        logger.info(f"[i] Workspace owner bulundu: {owner_id}")
+                        return owner_id
+                # Owner yoksa admin'i bul
+                for member in members:
+                    if member.get("is_admin", False):
+                        admin_id = member.get("id")
+                        logger.info(f"[i] Workspace admin bulundu: {admin_id}")
+                        return admin_id
+            logger.warning("[!] Workspace owner/admin bulunamadı")
+            return None
+        except Exception as e:
+            logger.error(f"[X] Workspace owner bulunurken hata: {e}")
+            return None
     
     async def create_help_request(
         self,
@@ -56,7 +86,92 @@ class HelpService:
             
             logger.info(f"[>] Yardım isteği oluşturuldu | Kullanıcı: {requester_name} ({requester_id}) | Konu: {topic}")
             
-            # 3. Block mesajı oluştur
+            # 3. Yeni yardım kanalı oluştur
+            channel_name = f"yardim-{help_id[:8]}"
+            try:
+                help_channel = self.conv.create_channel(
+                    name=channel_name,
+                    is_private=False
+                )
+                help_channel_id = help_channel["id"]
+                logger.info(f"[+] Yardım kanalı oluşturuldu: #{channel_name} (ID: {help_channel_id})")
+                
+                # Akademi owner'ı bul
+                owner_id = self._get_workspace_owner()
+                
+                # Kanalı davet et: owner + requester
+                invite_users = [requester_id]
+                if owner_id and owner_id != requester_id:
+                    invite_users.append(owner_id)
+                
+                if invite_users:
+                    try:
+                        self.conv.invite_users(help_channel_id, invite_users)
+                        logger.info(f"[+] Kullanıcılar kanala davet edildi: {invite_users}")
+                    except Exception as e:
+                        logger.warning(f"[!] Kullanıcılar davet edilemedi: {e}")
+                
+                # Kanal açılış mesajı gönder
+                welcome_blocks = [
+                    {
+                        "type": "header",
+                        "text": {
+                            "type": "plain_text",
+                            "text": f"🆘 Yardım İsteği: {topic}",
+                            "emoji": True
+                        }
+                    },
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": (
+                                f"*<@{requester_id}>* yardım istiyor:\n\n"
+                                f"*{description}*\n\n"
+                                f"Bu kanal 30 dakika sonra otomatik olarak kapatılacak. "
+                                f"Yardım etmek isteyenler 'Yardım Et' butonuna tıklayarak bu kanala katılabilir."
+                            )
+                        }
+                    },
+                    {
+                        "type": "context",
+                        "elements": [
+                            {
+                                "type": "mrkdwn",
+                                "text": f"🆔 Yardım ID: `{help_id[:8]}...` | ⏰ Kanal 30 dakika sonra kapanacak"
+                            }
+                        ]
+                    }
+                ]
+                
+                self.chat.post_message(
+                    channel=help_channel_id,
+                    text=f"🆘 Yardım İsteği: {topic}",
+                    blocks=welcome_blocks
+                )
+                
+                # Veritabanına help_channel_id kaydet
+                self.repo.update(help_id, {"help_channel_id": help_channel_id})
+                
+                # 30 dakika sonra kanalı kapatmak için scheduled task ekle
+                if self.cron_client:
+                    try:
+                        job_id = f"close_help_channel_{help_id}"
+                        self.cron_client.add_once_job(
+                            func=self._close_help_channel,
+                            delay_minutes=30,
+                            job_id=job_id,
+                            args=[help_id, help_channel_id]
+                        )
+                        logger.info(f"[+] Kanal kapatma görevi planlandı: {job_id} (30 dakika sonra)")
+                    except Exception as e:
+                        logger.warning(f"[!] Kanal kapatma görevi planlanamadı: {e}")
+                
+            except Exception as e:
+                logger.error(f"[X] Yardım kanalı oluşturulamadı: {e}")
+                help_channel_id = None
+            
+            # 4. Block mesajı oluştur
             blocks = [
                 {
                     "type": "header",
@@ -110,14 +225,14 @@ class HelpService:
                 }
             ]
             
-            # 4. Mesajı kanala gönder
+            # 5. Mesajı kanala gönder
             response = self.chat.post_message(
                 channel=channel_id,
                 text=f"🆘 Yardım İsteği: {topic}",
                 blocks=blocks
             )
             
-            # 5. Message TS'yi kaydet (güncelleme için)
+            # 6. Message TS'yi kaydet (güncelleme için)
             if response.get("ok"):
                 message_ts = response.get("ts")
                 self.repo.update(help_id, {"message_ts": message_ts})
@@ -170,12 +285,34 @@ class HelpService:
             
             logger.info(f"[>] Yardım teklifi | Yardım Eden: {helper_name} ({helper_id}) | İsteyen: {requester_name} ({help_request['requester_id']})")
             
-            # 6. Yardım eden ve isteyen arasında DM aç
+            # 6. Yardım kanalına helper'ı davet et
+            help_channel_id = help_request.get("help_channel_id")
+            if help_channel_id:
+                try:
+                    self.conv.invite_users(help_channel_id, [helper_id])
+                    logger.info(f"[+] Yardım eden kullanıcı kanala davet edildi: {helper_id} | Kanal: {help_channel_id}")
+                    
+                    # Yardım kanalına bilgilendirme mesajı gönder
+                    self.chat.post_message(
+                        channel=help_channel_id,
+                        text=f"✅ <@{helper_id}> yardım etmek istiyor!",
+                        blocks=[{
+                            "type": "section",
+                            "text": {
+                                "type": "mrkdwn",
+                                "text": f"✅ *<@{helper_id}>* yardım etmek istiyor ve kanala katıldı!"
+                            }
+                        }]
+                    )
+                except Exception as e:
+                    logger.warning(f"[!] Yardım eden kullanıcı kanala davet edilemedi: {e}")
+            
+            # 7. Yardım eden ve isteyen arasında DM aç
             dm_channel = self.conv.open_conversation(
                 users=[help_request["requester_id"], helper_id]
             )
             
-            # 7. DM'de hoş geldin mesajı gönder
+            # 8. DM'de hoş geldin mesajı gönder
             dm_blocks = [
                 {
                     "type": "section",
@@ -198,7 +335,7 @@ class HelpService:
                 blocks=dm_blocks
             )
             
-            # 8. Yardım isteyen kişiye bilgi ver (DM)
+            # 9. Yardım isteyen kişiye bilgi ver (DM)
             requester_dm = self.conv.open_conversation(users=[help_request["requester_id"]])
             self.chat.post_message(
                 channel=requester_dm["id"],
@@ -217,7 +354,7 @@ class HelpService:
                 }]
             )
             
-            # 9. Orijinal mesajı güncelle (butonu devre dışı bırak)
+            # 10. Orijinal mesajı güncelle (butonu devre dışı bırak)
             updated_blocks = [
                 {
                     "type": "header",
@@ -274,6 +411,42 @@ class HelpService:
         except Exception as e:
             logger.error(f"[X] HelpService.offer_help hatası: {e}", exc_info=True)
             return {"success": False, "message": "Yardım teklifi verilirken bir hata oluştu."}
+    
+    def _close_help_channel(self, help_id: str, help_channel_id: str):
+        """Yardım kanalını kapatır (30 dakika sonra otomatik çağrılır)."""
+        try:
+            logger.info(f"[>] Yardım kanalı kapatılıyor | Help ID: {help_id} | Kanal: {help_channel_id}")
+            
+            # Kanalı arşivle
+            success = self.conv.archive_channel(help_channel_id)
+            
+            if success:
+                # Yardım isteğini kapatılmış olarak işaretle
+                self.repo.update(help_id, {"status": "closed"})
+                
+                # Kanal kapatıldı mesajı gönder (eğer hala açıksa)
+                try:
+                    self.chat.post_message(
+                        channel=help_channel_id,
+                        text="⏰ Bu yardım kanalı 30 dakika sonra otomatik olarak kapatıldı.",
+                        blocks=[{
+                            "type": "section",
+                            "text": {
+                                "type": "mrkdwn",
+                                "text": "⏰ *Kanal Kapatıldı*\n\nBu yardım kanalı 30 dakika sonra otomatik olarak kapatıldı. "
+                                        "Yardıma devam etmek isterseniz, yeni bir yardım isteği oluşturabilirsiniz."
+                            }
+                        }]
+                    )
+                except Exception as e:
+                    logger.debug(f"[i] Kanal zaten kapatılmış, mesaj gönderilemedi: {e}")
+                
+                logger.info(f"[+] Yardım kanalı başarıyla kapatıldı | Help ID: {help_id}")
+            else:
+                logger.warning(f"[!] Yardım kanalı kapatılamadı | Help ID: {help_id}")
+                
+        except Exception as e:
+            logger.error(f"[X] Yardım kanalı kapatılırken hata: {e}", exc_info=True)
     
     def get_help_details(self, help_id: str) -> Dict[str, Any]:
         """Yardım isteği detaylarını getirir."""

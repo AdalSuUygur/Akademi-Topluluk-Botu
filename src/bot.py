@@ -124,7 +124,7 @@ knowledge_service = KnowledgeService(
     vector_client, groq_client
 )
 help_service = HelpService(
-    chat_manager, conv_manager, help_repo, user_repo
+    chat_manager, conv_manager, user_manager, help_repo, user_repo, cron_client
 )
 logger.info("[+] Servisler hazır.")
 
