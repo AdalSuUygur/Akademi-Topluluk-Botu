@@ -103,7 +103,8 @@ def setup_challenge_handlers(
                 theme=request.theme,
                 team_size=request.team_size,
                 deadline_hours=request.deadline_hours,
-                difficulty=request.difficulty
+                difficulty=request.difficulty,
+                channel_id=channel_id  # Mesajı komutun çalıştırıldığı kanala gönder
             )
 
             if result["success"]:

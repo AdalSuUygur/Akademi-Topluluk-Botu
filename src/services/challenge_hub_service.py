@@ -61,7 +61,8 @@ class ChallengeHubService:
         theme: str,
         team_size: int,
         deadline_hours: int = 48,
-        difficulty: str = "intermediate"
+        difficulty: str = "intermediate",
+        channel_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Yeni challenge başlatır.
@@ -101,9 +102,10 @@ class ChallengeHubService:
                 "role": "leader"
             })
 
-            # 4. #challenge-hub kanalına mesaj gönder (buton ile)
-            hub_channel = self._get_hub_channel()
-            if hub_channel:
+            # 4. Challenge mesajını gönder (buton ile)
+            # Önce belirtilen kanala, yoksa hub channel'a, yoksa creator'a DM
+            target_channel = channel_id or self._get_hub_channel()
+            if target_channel:
                 blocks = [
                     {
                         "type": "header",
@@ -153,10 +155,13 @@ class ChallengeHubService:
                     }
                 ]
                 self.chat.post_message(
-                    channel=hub_channel,
+                    channel=target_channel,
                     text="🔥 Yeni Challenge Açıldı!",
                     blocks=blocks
                 )
+                
+                # Hub channel ID'yi kaydet
+                self.hub_repo.update(challenge_id, {"hub_channel_id": target_channel})
 
             logger.info(f"[+] Challenge başlatıldı | ID: {challenge_id} | Tema: {theme} | Takım: {team_size}")
 
@@ -245,13 +250,16 @@ class ChallengeHubService:
             updated_participants = self.participant_repo.get_team_members(challenge_id)
             participant_count = len(updated_participants)
 
-            # Hub kanalına güncelleme
-            hub_channel = self._get_hub_channel()
-            if hub_channel:
-                self.chat.post_message(
-                    channel=hub_channel,
-                    text=f"✅ Yeni katılımcı! ({participant_count}/{challenge['team_size']} kişi)"
-                )
+            # Hub kanalına güncelleme (eğer varsa)
+            hub_channel_id = challenge.get("hub_channel_id")
+            if hub_channel_id:
+                try:
+                    self.chat.post_message(
+                        channel=hub_channel_id,
+                        text=f"✅ Yeni katılımcı! ({participant_count}/{challenge['team_size']} kişi)"
+                    )
+                except Exception as e:
+                    logger.debug(f"[i] Hub kanalına mesaj gönderilemedi: {e}")
 
             # 8. Takım dolduysa challenge'ı başlat
             if participant_count >= challenge["team_size"]:
