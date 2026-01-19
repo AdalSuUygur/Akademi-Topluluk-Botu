@@ -74,6 +74,9 @@ from src.handlers import (
     setup_challenge_evaluation_handlers
 )
 
+# Non-interactive mod (CI / prod deploy) için flag
+NON_INTERACTIVE = os.environ.get("CEMIL_NON_INTERACTIVE") == "1"
+
 # ============================================================================
 # KONFIGÜRASYON
 # ============================================================================
@@ -331,7 +334,11 @@ if __name__ == "__main__":
                 f.write("U12345,Ahmet,Yilmaz,Ahmet Yilmaz,01.01.1990,Yapay Zeka\n")
             print(f"[+] Şablon oluşturuldu: {CSV_PATH}")
             print(f"[i] Not: Şablon içinde örnek veri bulunmaktadır.")
-            choice = input("Bu şablonu şimdi kullanmak ister misiniz? (e/h): ").lower().strip()
+            
+            if NON_INTERACTIVE:
+                choice = "h"
+            else:
+                choice = input("Bu şablonu şimdi kullanmak ister misiniz? (e/h): ").lower().strip()
             
             if choice == 'e':
                 print("[i] Veriler işleniyor...")
@@ -348,7 +355,11 @@ if __name__ == "__main__":
     else:
         # Dosya var, kullanıp kullanmayacağını sor
         print(f"\n[?] '{CSV_PATH}' dosyası bulundu.")
-        choice = input("Bu CSV dosyasındaki verileri kullanmak ister misiniz? (e/h): ").lower().strip()
+        
+        if NON_INTERACTIVE:
+            choice = "h"
+        else:
+            choice = input("Bu CSV dosyasındaki verileri kullanmak ister misiniz? (e/h): ").lower().strip()
         
         if choice == 'e':
             print("[i] Veriler işleniyor...")

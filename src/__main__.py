@@ -18,6 +18,9 @@ from src.core.logger import logger
 from src.core.settings import get_settings
 from dotenv import load_dotenv
 
+# Non-interactive mod (CI / prod deploy) için flag
+NON_INTERACTIVE = os.environ.get("CEMIL_NON_INTERACTIVE") == "1"
+
 # Global handler değişkeni (shutdown için)
 handler = None
 shutdown_in_progress = False
@@ -110,8 +113,11 @@ def main():
     db_client.init_db()
     
     # Challenge tablolarını temizle (startup'ta)
-    print("\n[?] Challenge tablolarını temizlemek ister misiniz? (e/h): ", end="")
-    choice = input().lower().strip()
+    if NON_INTERACTIVE:
+        choice = "h"
+    else:
+        print("\n[?] Challenge tablolarını temizlemek ister misiniz? (e/h): ", end="")
+        choice = input().lower().strip()
     if choice == 'e':
         logger.info("[>] Challenge tabloları temizleniyor...")
         deleted_counts = db_client.clean_challenge_tables()
@@ -140,7 +146,11 @@ def main():
                 f.write("U12345,Ahmet,Yilmaz,Ahmet Yilmaz,01.01.1990,Yapay Zeka\n")
             print(f"[+] Şablon oluşturuldu: {CSV_PATH}")
             print(f"[i] Not: Şablon içinde örnek veri bulunmaktadır.")
-            choice = input("Bu şablonu şimdi kullanmak ister misiniz? (e/h): ").lower().strip()
+            
+            if NON_INTERACTIVE:
+                choice = "h"
+            else:
+                choice = input("Bu şablonu şimdi kullanmak ister misiniz? (e/h): ").lower().strip()
             
             if choice == 'e':
                 print("[i] Veriler işleniyor...")
@@ -157,7 +167,11 @@ def main():
     else:
         # Dosya var, kullanıp kullanmayacağını sor
         print(f"\n[?] '{CSV_PATH}' dosyası bulundu.")
-        choice = input("Bu CSV dosyasındaki verileri kullanmak ister misiniz? (e/h): ").lower().strip()
+        
+        if NON_INTERACTIVE:
+            choice = "h"
+        else:
+            choice = input("Bu CSV dosyasındaki verileri kullanmak ister misiniz? (e/h): ").lower().strip()
         
         if choice == 'e':
             print("[i] Veriler işleniyor...")
@@ -181,7 +195,11 @@ def main():
     if vector_index_exists:
         # Mevcut veriler var
         print(f"\n[?] Vektör veritabanı bulundu (mevcut veriler: {len(vector_client.documents) if vector_client.documents else 0} parça).")
-        choice = input("Vektör veritabanını yeniden oluşturmak ister misiniz? (e/h): ").lower().strip()
+        
+        if NON_INTERACTIVE:
+            choice = "h"
+        else:
+            choice = input("Vektör veritabanını yeniden oluşturmak ister misiniz? (e/h): ").lower().strip()
         
         if choice == 'e':
             print("[i] Vektör veritabanı yeniden oluşturuluyor...")
@@ -227,7 +245,11 @@ def main():
     if startup_channel:
         print(f"\n[?] Başlangıç mesajı (welcome) Slack kanalına gönderilsin mi?")
         print(f"    Kanal: {startup_channel}")
-        choice = input("    Cevap (e/h): ").lower().strip()
+        
+        if NON_INTERACTIVE:
+            choice = "h"
+        else:
+            choice = input("    Cevap (e/h): ").lower().strip()
         
         if choice == 'e':
             try:
