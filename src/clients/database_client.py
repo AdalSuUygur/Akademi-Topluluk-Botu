@@ -217,8 +217,11 @@ class DatabaseClient(metaclass=SingletonMeta):
                 """)
                 
                 # Yardım İstekleri Tablosu (Help Requests)
+                # Mevcut şemada foreign key'ler users(id)'ye bağlıydı, ancak uygulama Slack ID kullanıyor.
+                # Foreign key hatalarını önlemek için tabloyu yeniden oluşturup users(slack_id)'ye bağlarız.
+                cursor.execute("DROP TABLE IF EXISTS help_requests")
                 cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS help_requests (
+                    CREATE TABLE help_requests (
                         id TEXT PRIMARY KEY,
                         requester_id TEXT NOT NULL,
                         topic TEXT NOT NULL,
@@ -231,23 +234,10 @@ class DatabaseClient(metaclass=SingletonMeta):
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         resolved_at TIMESTAMP,
                         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        FOREIGN KEY (requester_id) REFERENCES users(id) ON DELETE CASCADE,
-                        FOREIGN KEY (helper_id) REFERENCES users(id) ON DELETE SET NULL
+                        FOREIGN KEY (requester_id) REFERENCES users(slack_id) ON DELETE CASCADE,
+                        FOREIGN KEY (helper_id) REFERENCES users(slack_id) ON DELETE SET NULL
                     )
                 """)
-                
-                # Migration: help_channel_id ve updated_at kolonları yoksa ekle
-                cursor.execute("PRAGMA table_info(help_requests)")
-                columns = [column[1] for column in cursor.fetchall()]
-                if 'help_channel_id' not in columns:
-                    logger.info("[i] help_channel_id kolonu ekleniyor...")
-                    cursor.execute("ALTER TABLE help_requests ADD COLUMN help_channel_id TEXT")
-                    logger.info("[+] help_channel_id kolonu eklendi.")
-                if 'updated_at' not in columns:
-                    logger.info("[i] help_requests tablosuna updated_at kolonu ekleniyor...")
-                    # SQLite'da ALTER TABLE ile DEFAULT CURRENT_TIMESTAMP kullanılamaz, NULL ile ekle
-                    cursor.execute("ALTER TABLE help_requests ADD COLUMN updated_at TIMESTAMP")
-                    logger.info("[+] help_requests.updated_at kolonu eklendi.")
                 
                 # Challenge Hub Tabloları
                 # Foreign key'leri aç (challenge tabloları için)
