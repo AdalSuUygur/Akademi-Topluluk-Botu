@@ -146,20 +146,19 @@ class ChallengeEvaluationService:
 
             header_text = f"📌 *{theme}* – *{project_name}*"
 
-            # Kompakt canvas mesajı
+            # Kompakt canvas mesajı - Section block kullan (fields yerine text kullan)
             blocks = [
                 {
                     "type": "section",
-                    "fields": [
-                        {
-                            "type": "mrkdwn",
-                            "text": f"*{header_text}*\n{status_label}",
-                        },
-                        {
-                            "type": "mrkdwn",
-                            "text": f"*Bitiş:* {deadline_text}\n*Takım:* {participants_text[:50]}{'...' if len(participants_text) > 50 else ''}",
-                        },
-                    ],
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": (
+                            f"{header_text}\n"
+                            f"*Durum:* {status_label}\n"
+                            f"*Bitiş:* {deadline_text}\n"
+                            f"*Takım:* {participants_text[:100]}{'...' if len(participants_text) > 100 else ''}"
+                        )
+                    }
                 },
             ]
             
@@ -187,6 +186,9 @@ class ChallengeEvaluationService:
                         }
                     ],
                 })
+            
+            # Debug: Blocks yapısını logla
+            logger.debug(f"[DEBUG] Canvas blocks yapısı: {blocks}")
 
             summary_ts = challenge.get("summary_message_ts")
 
@@ -212,9 +214,24 @@ class ChallengeEvaluationService:
 
             # Yeni mesaj oluştur
             try:
+                # Canvas mesajı için text fallback (blocks render edilemezse gösterilir)
+                canvas_text = (
+                    f"{header_text}\n"
+                    f"Durum: {status_label}\n"
+                    f"Bitiş: {deadline_text}\n"
+                    f"Takım: {participants_text[:100]}"
+                )
+                
+                logger.debug(
+                    f"[DEBUG] Canvas mesajı gönderiliyor | "
+                    f"Kanal: {hub_channel_id} | "
+                    f"Text: {canvas_text[:100]}... | "
+                    f"Blocks sayısı: {len(blocks)}"
+                )
+                
                 resp = self.chat.post_message(
                     channel=hub_channel_id,
-                    text=header_text,
+                    text=canvas_text,
                     blocks=blocks,
                 )
                 
