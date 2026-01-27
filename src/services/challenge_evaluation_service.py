@@ -480,8 +480,8 @@ class ChallengeEvaluationService:
                 # Kullanıcıyı users tablosuna ekle (foreign key için gerekli)
                 try:
                     from src.clients import DatabaseClient
-                    from src.core.settings import get_settings
-                    settings = get_settings()
+                    # get_settings zaten dosyanın başında import edilmiş, tekrar import etmeye gerek yok
+                    # settings zaten yukarıda (satır 427) tanımlı
                     db_client = DatabaseClient(db_path=settings.database_path)
                     
                     with db_client.get_connection() as conn:

@@ -172,6 +172,14 @@ class ChallengeHubService:
             from src.core.settings import get_settings
             settings = get_settings()
             target_channel = settings.startup_channel or self._get_hub_channel()
+            
+            if not target_channel:
+                logger.warning(f"[!] startup_channel ayarlanmamış, challenge duyuru mesajı gönderilemedi | Challenge: {challenge_id}")
+                # Fallback: Komutun çalıştırıldığı kanala gönder (eğer varsa)
+                target_channel = channel_id
+                if target_channel:
+                    logger.info(f"[i] Fallback: Challenge duyuru mesajı komut kanalına gönderiliyor: {target_channel}")
+            
             if target_channel:
                 blocks = [
                     {
@@ -240,14 +248,18 @@ class ChallengeHubService:
                         ]
                     }
                 ]
+                # post_message kullanılıyor - bu herkese açık mesaj gönderir (ephemeral değil)
                 self.chat.post_message(
                     channel=target_channel,
                     text="🚀 Yeni bir CHALLENGE başlıyor!",
                     blocks=blocks
                 )
+                logger.info(f"[+] Challenge duyuru mesajı herkese açık kanala gönderildi: {target_channel}")
                 
                 # Hub channel ID'yi kaydet
                 self.hub_repo.update(challenge_id, {"hub_channel_id": target_channel})
+            else:
+                logger.error(f"[X] Challenge duyuru mesajı gönderilemedi: startup_channel ve channel_id ayarlanmamış | Challenge: {challenge_id}")
 
             logger.info(f"[+] Challenge başlatıldı | ID: {challenge_id} | Creator: {creator_id} | Takım Büyüklüğü (creator hariç): {team_size}")
 
