@@ -176,9 +176,10 @@ class ChallengeEvaluationService:
             
             for row in table_rows:
                 # Markdown table satırı - Slack mention'lar çalışır
+                # Takım kolonunu daha geniş yaparak mention'ların kırpılmasını önle
                 canvas_content_lines.append(
                     f"| {row['theme'][:18]} | {row['project'][:23]} | {row['status'][:13]} | "
-                    f"{row['deadline']} | {row['team'][:35]} | {row['github'][:10]} | {row['votes']} |"
+                    f"{row['deadline']} | {row['team']} | {row['github'][:10]} | {row['votes']} |"
                 )
             
             canvas_content = "\n".join(canvas_content_lines)
@@ -251,16 +252,17 @@ class ChallengeEvaluationService:
                     logger.info("[i] Fallback: Normal mesaj olarak gönderiliyor...")
             
             # Fallback: Canvas API yoksa veya çalışmazsa normal mesaj gönder
-            # Code block yerine düz tablo kullan (mention'lar için)
+            # Slack mention'ları koruyarak temiz tablo oluştur
             table_lines_plain = [
-                f"*{'Tema':<18} | {'Proje':<23} | {'Durum':<13} | {'Bitiş':<10} | {'Takım':<35} | {'GitHub':<10} | {'Oylar':<8}*",
-                "─" * 130
+                f"*{'Tema':<18} | {'Proje':<23} | {'Durum':<13} | {'Bitiş':<10} | {'Takım'} | {'GitHub':<10} | {'Oylar':<8}*",
+                "─" * 100
             ]
             
             for row in table_rows:
+                # Takım kolonunu truncate etme - mention'lar tam olsun
                 table_lines_plain.append(
                     f"{row['theme'][:18]:<18} | {row['project'][:23]:<23} | {row['status'][:13]:<13} | "
-                    f"{row['deadline']:<10} | {row['team'][:35]:<35} | {row['github'][:10]:<10} | {row['votes']:<8}"
+                    f"{row['deadline']:<10} | {row['team']} | {row['github'][:10]:<10} | {row['votes']:<8}"
                 )
             
             table_text_plain = "\n".join(table_lines_plain)
@@ -542,16 +544,27 @@ class ChallengeEvaluationService:
             
             info_blocks = [
                 {
+                    "type": "header",
+                    "text": {
+                        "type": "plain_text",
+                        "text": "📣 Jüri Aranıyor",
+                        "emoji": True
+                    }
+                },
+                {
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
                         "text": (
-                            f"📣 *Jüri Aranıyor*\n"
-                            f"🎯 *{theme}* – *{project_name}*\n"
-                            f"👥 Takım: {participants_text}\n\n"
-                            f"💡 {project_description[:150]}{'...' if len(project_description) > 150 else ''}"
+                            f"🎯 *Tema:* {theme}\n"
+                            f"📌 *Proje:* {project_name}\n"
+                            f"👥 *Takım:* {participants_text}\n\n"
+                            f"💡 *Açıklama:*\n{project_description[:150]}{'...' if len(project_description) > 150 else ''}"
                         )
                     }
+                },
+                {
+                    "type": "divider"
                 },
                 {
                     "type": "actions",

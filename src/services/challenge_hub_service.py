@@ -183,13 +183,21 @@ class ChallengeHubService:
             if target_channel:
                 blocks = [
                     {
+                        "type": "header",
+                        "text": {
+                            "type": "plain_text",
+                            "text": "🚀 Yeni Challenge Başladı!",
+                            "emoji": True
+                        }
+                    },
+                    {
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
                             "text": (
-                                f"🚀 *Yeni Challenge Başladı!*\n"
-                                f"👤 <@{creator_id}> | 📊 *{team_size + 1} kişilik takım*\n"
-                                f"📊 *0/{team_size}* katılımcı"
+                                f"👤 *Açan:* <@{creator_id}>\n"
+                                f"👥 *Takım Büyüklüğü:* {team_size + 1} kişi\n"
+                                f"📊 *Durum:* 0/{team_size} katılımcı"
                             )
                         }
                     },
@@ -427,24 +435,30 @@ class ChallengeHubService:
                 try:
                     remaining = challenge['team_size'] - participant_count
                     if challenge_started:
-                        message_text = f"✅ *Takım Doldu!* Challenge başlatıldı"
+                        message_text = "✅ *Takım Doldu!* Challenge başlatıldı 🚀"
+                        blocks = [
+                            {
+                                "type": "section",
+                                "text": {
+                                    "type": "mrkdwn",
+                                    "text": f"🎉 {message_text}"
+                                }
+                            }
+                        ]
                     elif challenge_start_error:
-                        message_text = f"⚠️ Takım doldu ama başlatma hatası"
+                        message_text = "⚠️ Takım doldu ama başlatma hatası"
+                        blocks = [{"type": "section", "text": {"type": "mrkdwn", "text": message_text}}]
                     elif remaining > 0:
-                        message_text = f"📊 *{participant_count}/{challenge['team_size']}* | *{remaining} kişi* daha gerekli"
+                        message_text = f"📊 *{participant_count}/{challenge['team_size']}* katılımcı | ⏳ *{remaining} kişi* daha gerekli"
+                        blocks = [{"type": "section", "text": {"type": "mrkdwn", "text": message_text}}]
                     else:
-                        message_text = f"✅ *Takım Doldu!* Challenge başlatılıyor..."
+                        message_text = "✅ *Takım Doldu!* Challenge başlatılıyor... 🚀"
+                        blocks = [{"type": "section", "text": {"type": "mrkdwn", "text": message_text}}]
                     
                     self.chat.post_message(
                         channel=hub_channel_id,
                         text=message_text,
-                        blocks=[{
-                            "type": "section",
-                            "text": {
-                                "type": "mrkdwn",
-                                "text": message_text
-                            }
-                        }]
+                        blocks=blocks
                     )
                 except Exception as e:
                     logger.debug(f"[i] Hub kanalına mesaj gönderilemedi: {e}")
