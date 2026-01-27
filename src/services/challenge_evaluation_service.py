@@ -134,56 +134,47 @@ class ChallengeEvaluationService:
 
             header_text = f"📌 *{theme}* – *{project_name}*"
 
+            # Kompakt canvas mesajı
             blocks = [
-                {
-                    "type": "section",
-                    "text": {"type": "mrkdwn", "text": header_text},
-                },
                 {
                     "type": "section",
                     "fields": [
                         {
                             "type": "mrkdwn",
-                            "text": f"*Durum:*\n{status_label}",
+                            "text": f"*{header_text}*\n{status_label}",
                         },
                         {
                             "type": "mrkdwn",
-                            "text": f"*Bitiş:*\n{deadline_text}",
-                        },
-                        {
-                            "type": "mrkdwn",
-                            "text": f"*Katılımcılar:*\n{participants_text}",
-                        },
-                        {
-                            "type": "mrkdwn",
-                            "text": f"*GitHub:*\n{github_status}",
+                            "text": f"*Bitiş:* {deadline_text}\n*Takım:* {participants_text[:50]}{'...' if len(participants_text) > 50 else ''}",
                         },
                     ],
                 },
-                {"type": "divider"},
-                {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": f"*Proje Açıklaması:*\n{project_desc}",
-                    },
-                },
             ]
-
-            # Değerlendirme bilgisi varsa küçük bir özet ekle
+            
+            # GitHub bilgisi varsa ekle
+            if github_url:
+                blocks.append({
+                    "type": "context",
+                    "elements": [
+                        {
+                            "type": "mrkdwn",
+                            "text": f"🔗 {github_status[:80]}{'...' if len(github_status) > 80 else ''}",
+                        }
+                    ],
+                })
+            
+            # Değerlendirme bilgisi varsa ekle
             if evaluation:
-                eval_line = f"*Değerlendirme Durumu:* {eval_status or 'bilinmiyor'} | *Oylar:* ✅ {true_votes} / ❌ {false_votes}"
-                blocks.append(
-                    {
-                        "type": "context",
-                        "elements": [
-                            {
-                                "type": "mrkdwn",
-                                "text": eval_line,
-                            }
-                        ],
-                    }
-                )
+                eval_line = f"📊 {eval_status or 'bilinmiyor'} | Oylar: ✅{true_votes} ❌{false_votes}"
+                blocks.append({
+                    "type": "context",
+                    "elements": [
+                        {
+                            "type": "mrkdwn",
+                            "text": eval_line,
+                        }
+                    ],
+                })
 
             summary_ts = challenge.get("summary_message_ts")
 
@@ -326,12 +317,8 @@ class ChallengeEvaluationService:
                         "type": "mrkdwn",
                         "text": (
                             "👋 *Değerlendirme Başladı!*\n\n"
-                            "Harika iş çıkardınız! 🚀 Şimdi projenizi jüriye sunma zamanı.\n\n"
-                            "📌 *Süreç:*\n"
-                            "• 3 kişilik jüri ekibi bekleniyor...\n"
-                            "• Jüri gelince `/challenge set` ile puan verecekler.\n"
-                            "• Sizden sadece GitHub linki bekleniyor: `/challenge set github <link>`\n\n"
-                            "Başarılar! 🍀"
+                            "3 kişilik jüri ekibi bekleniyor. Jüri gelince değerlendirme başlayacak.\n\n"
+                            "💡 GitHub linki ekleyin: `/challenge set github <link>`"
                         )
                     }
                 }
@@ -399,12 +386,10 @@ class ChallengeEvaluationService:
                     "text": {
                         "type": "mrkdwn",
                         "text": (
-                            f"📣 *Jüri Aranıyor: {theme}*\n\n"
-                            f"*Proje:* {project_name}\n\n"
-                            f"*Proje Açıklaması:*\n{project_description[:200]}{'...' if len(project_description) > 200 else ''}\n\n"
-                            f"*Takım:* {participants_text}\n\n"
-                            "Bir proje daha tamamlandı! Değerlendirmek için 3 gönüllüye ihtiyacımız var.\n\n"
-                            "👇 *Katılmak için butona tıkla:* (Jüri ekibi dolunca otomatik başlar)"
+                            f"📣 *Jüri Aranıyor*\n"
+                            f"🎯 *{theme}* – *{project_name}*\n"
+                            f"👥 Takım: {participants_text}\n\n"
+                            f"💡 {project_description[:150]}{'...' if len(project_description) > 150 else ''}"
                         )
                     }
                 },
@@ -590,9 +575,9 @@ class ChallengeEvaluationService:
                             self.chat.post_message(
                                 channel=eval_channel_id,
                                 text=(
-                                    f"🚨 *JÜRİ EKİBİ TOPLANDI!* 🚨\n\n"
+                                    f"✅ *Jüri Ekibi Tamamlandı!*\n"
                                     f"Hoş geldiniz <@{juror_ids[0]}>, <@{juror_ids[1]}>, <@{juror_ids[2]}>!\n"
-                                    f"Değerlendirme süreci resmen başladı. Lütfen projeyi inceleyip `/challenge set` komutlarıyla oyunuzu kullanın."
+                                    f"Projeyi inceleyip `/challenge set` ile oyunuzu kullanın."
                                 )
                             )
                             
@@ -732,17 +717,16 @@ class ChallengeEvaluationService:
                         try:
                             self.chat.post_message(
                                 channel=eval_channel_id,
-                                text="✅ Tüm değerlendiriciler oy verdi ve GitHub repo public! Admin onayı bekleniyor...",
+                                text="✅ Tüm oylar alındı! Admin onayı bekleniyor...",
                                 blocks=[
                                     {
                                         "type": "section",
                                         "text": {
                                             "type": "mrkdwn",
                                             "text": (
-                                                "✅ *Tüm değerlendiriciler oy verdi ve GitHub repo public!*\n\n"
-                                                f"📊 Oylar: True={votes['true']}, False={votes['false']}\n"
-                                                f"🔗 GitHub: {github_url}\n\n"
-                                                "👤 **Admin onayı bekleniyor...**"
+                                                f"✅ *Tüm oylar alındı!*\n"
+                                                f"📊 Oylar: ✅{votes['true']} ❌{votes['false']} | 🔗 {github_url}\n\n"
+                                                "👤 Admin onayı bekleniyor..."
                                             )
                                         }
                                     },
@@ -789,18 +773,16 @@ class ChallengeEvaluationService:
                             try:
                                 self.chat.post_message(
                                     channel=challenge_channel_id,
-                                    text="✅ Değerlendirme tamamlandı, admin onayı bekleniyor...",
+                                    text="✅ Değerlendirme tamamlandı! Admin onayı bekleniyor...",
                                     blocks=[
                                         {
                                             "type": "section",
                                             "text": {
                                                 "type": "mrkdwn",
                                                 "text": (
-                                                    "✅ *Challenge Değerlendirmesi Tamamlandı!*\n\n"
-                                                    f"📊 Jüri Oyları: True={votes['true']}, False={votes['false']}\n"
-                                                    f"🔗 GitHub Repo: {github_url}\n\n"
-                                                    "👤 *Admin onayı bekleniyor...*\n"
-                                                    "Sonuç çok yakında açıklanacak! ⏳"
+                                                    f"✅ *Değerlendirme Tamamlandı!*\n"
+                                                    f"📊 Oylar: ✅{votes['true']} ❌{votes['false']} | 🔗 {github_url}\n\n"
+                                                    "👤 Admin onayı bekleniyor..."
                                                 )
                                             }
                                         }
@@ -815,23 +797,20 @@ class ChallengeEvaluationService:
                         try:
                             if not github_url:
                                 message = (
-                                    "✅ *Tüm değerlendiriciler oy verdi!*\n\n"
-                                    "🔗 Şimdi GitHub repo linki eklemeniz gerekiyor:\n"
-                                    "`/challenge set github <link>`\n\n"
-                                    "Repo eklendikten ve public olduğu doğrulandıktan sonra değerlendirme sonuçlanacak."
+                                    f"✅ *Tüm oylar alındı!*\n\n"
+                                    f"📊 Oylar: ✅{votes['true']} ❌{votes['false']}\n\n"
+                                    f"🔗 GitHub linki ekleyin: `/challenge set github <link>`"
                                 )
                             else:
                                 message = (
-                                    "✅ *Tüm değerlendiriciler oy verdi!*\n\n"
-                                    "⚠️ GitHub repo linki eklendi ancak repo *private* görünüyor.\n"
-                                    "Lütfen repo'yu public yapın veya doğru linki ekleyin:\n"
-                                    "`/challenge set github <link>`\n\n"
-                                    "Repo public olduktan sonra değerlendirme sonuçlanacak."
+                                    f"✅ *Tüm oylar alındı!*\n\n"
+                                    f"📊 Oylar: ✅{votes['true']} ❌{votes['false']}\n\n"
+                                    f"⚠️ GitHub repo private. Public yapın veya linki güncelleyin: `/challenge set github <link>`"
                                 )
                             
                             self.chat.post_message(
                                 channel=eval_channel_id,
-                                text="✅ Tüm değerlendiriciler oy verdi!",
+                                text=message.split('\n')[0],  # İlk satırı text olarak kullan
                                 blocks=[
                                     {
                                         "type": "section",
@@ -908,17 +887,16 @@ class ChallengeEvaluationService:
                         try:
                             self.chat.post_message(
                                 channel=eval_channel_id,
-                                text="✅ GitHub repo public ve tüm oylar alındı! Admin onayı bekleniyor...",
+                                text="✅ GitHub public! Admin onayı bekleniyor...",
                                 blocks=[
                                     {
                                         "type": "section",
                                         "text": {
                                             "type": "mrkdwn",
                                             "text": (
-                                                "✅ *GitHub repo public doğrulandı ve tüm oylar alındı!*\n\n"
-                                                f"📊 Oylar: True={votes['true']}, False={votes['false']}\n"
-                                                f"🔗 GitHub: {github_url}\n\n"
-                                                "👤 **Admin onayı bekleniyor...**"
+                                                f"✅ *GitHub Public!*\n"
+                                                f"📊 Oylar: ✅{votes['true']} ❌{votes['false']} | 🔗 {github_url}\n\n"
+                                                "👤 Admin onayı bekleniyor..."
                                             )
                                         }
                                     },
@@ -957,17 +935,17 @@ class ChallengeEvaluationService:
                     
                     return {
                         "success": True,
-                        "message": f"✅ GitHub repo linki kaydedildi ve public doğrulandı. Admin onayı bekleniyor: {github_url}"
+                        "message": f"✅ GitHub public! Admin onayı bekleniyor: {github_url}"
                     }
                 else:
                     return {
                         "success": True,
-                        "message": f"✅ GitHub repo linki kaydedildi ve public olarak doğrulandı: {github_url}\n\n💡 Tüm değerlendiriciler oy verdiğinde değerlendirme tamamlanacak."
+                        "message": f"✅ GitHub public: {github_url}\n💡 Tüm oylar alındığında değerlendirme tamamlanacak."
                     }
             else:
                 return {
                     "success": True,
-                    "message": f"⚠️ GitHub repo linki kaydedildi ancak repo private görünüyor: {github_url}\n\n💡 Başarılı sayılması için repo public olmalı."
+                    "message": f"⚠️ GitHub private: {github_url}\n💡 Public yapın."
                 }
 
         except Exception as e:

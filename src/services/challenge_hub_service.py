@@ -183,29 +183,14 @@ class ChallengeHubService:
             if target_channel:
                 blocks = [
                     {
-                        "type": "header",
-                        "text": {
-                            "type": "plain_text",
-                            "text": "🚀 Yeni bir CHALLENGE başlıyor!",
-                            "emoji": True
-                        }
-                    },
-                    {
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
                             "text": (
-                                f"👤 <@{creator_id}> yeni bir challenge başlattı!\n\n"
-                                "Bakalım bu sefer hangi proje hayata geçecek? ✨\n\n"
-                                f"*Takım Büyüklüğü:* {team_size + 1} kişi (sen dahil)\n"
+                                f"🚀 *Yeni Challenge Başladı!*\n"
+                                f"👤 <@{creator_id}> | 📊 *{team_size + 1} kişilik takım*\n"
+                                f"📊 *0/{team_size}* katılımcı"
                             )
-                        }
-                    },
-                    {
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": "Katılmak istersen aşağıdaki butona tıklaman yeterli:"
                         }
                     },
                     {
@@ -226,24 +211,12 @@ class ChallengeHubService:
                                 "type": "button",
                                 "text": {
                                     "type": "plain_text",
-                                    "text": "🗑️ İptal Et",
+                                    "text": "🗑️ İptal",
                                     "emoji": True
                                 },
                                 "style": "danger",
                                 "action_id": "challenge_cancel_button",
                                 "value": challenge_id
-                            }
-                        ]
-                    },
-                    {
-                        "type": "context",
-                        "elements": [
-                            {
-                                "type": "mrkdwn",
-                                "text": (
-                                    f"📊 *0/{team_size}* katılımcı | "
-                                    "Takım dolunca proje ve görevler otomatik seçilecek."
-                                )
                             }
                         ]
                     }
@@ -448,13 +421,13 @@ class ChallengeHubService:
                 try:
                     remaining = challenge['team_size'] - participant_count
                     if challenge_started:
-                        message_text = f"🎊 *TAKIM DOLDU!* 🚀 Challenge başlatıldı!"
+                        message_text = f"✅ *Takım Doldu!* Challenge başlatıldı"
                     elif challenge_start_error:
-                        message_text = f"⚠️ *TAKIM DOLDU AMA BAŞLATMA HATASI!*"
+                        message_text = f"⚠️ Takım doldu ama başlatma hatası"
                     elif remaining > 0:
-                        message_text = f"🎉 Yeni katılımcı! 📊 *{participant_count}/{challenge['team_size']}* | ⏳ *{remaining} kişi* daha gerekli"
+                        message_text = f"📊 *{participant_count}/{challenge['team_size']}* | *{remaining} kişi* daha gerekli"
                     else:
-                        message_text = f"🎊 *TAKIM DOLDU!* 🚀 Challenge başlatılıyor..."
+                        message_text = f"✅ *Takım Doldu!* Challenge başlatılıyor..."
                     
                     self.chat.post_message(
                         channel=hub_channel_id,
@@ -474,9 +447,9 @@ class ChallengeHubService:
             remaining = challenge['team_size'] - participant_count
             
             if challenge_started:
-                message = f"🎊 *TAKIM DOLDU!* 🚀 Challenge başlatıldı! Kanalınızı kontrol edin."
+                message = f"✅ *Takım Doldu!* Challenge başlatıldı"
             elif challenge_start_error:
-                message = f"⚠️ *TAKIM DOLDU AMA BAŞLATMA HATASI!* Lütfen admin ile iletişime geçin."
+                message = f"⚠️ Takım doldu ama başlatma hatası"
             elif remaining > 0:
                 message = f"✅ Katıldınız! 📊 *{participant_count}/{challenge['team_size']}* | ⏳ *{remaining} kişi* daha gerekli"
             else:
