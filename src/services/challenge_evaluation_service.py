@@ -920,6 +920,13 @@ class ChallengeEvaluationService:
 
             logger.info(f"[+] Oy kaydedildi: {user_id} | Vote: {vote} | Evaluation: {evaluation_id}")
 
+            # Canvas'ı güncelle (oy sayısı değişti)
+            try:
+                await self.update_challenge_canvas(evaluation.get("challenge_hub_id"))
+                logger.debug(f"[i] Canvas güncellendi (oy verildikten sonra): {user_id}")
+            except Exception as e:
+                logger.warning(f"[!] Oy sonrası canvas güncellenemedi: {e}")
+
             # 3 kişi oy verdiyse kontrol et
             total_votes = votes["true"] + votes["false"]
             if total_votes >= 3:
