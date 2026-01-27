@@ -1116,12 +1116,37 @@ def setup_challenge_handlers(
                     )
                     return
                 
-                # Sadece creator iptal edebilir
-                if user_id != challenge.get("creator_id"):
+                # Sadece creator veya owner/admin iptal edebilir
+                creator_id = challenge.get("creator_id")
+                is_creator = user_id == creator_id
+                
+                # Owner/admin kontrolü
+                is_admin = False
+                if not is_creator:
+                    # admin_slack_id kontrolü
+                    if settings.admin_slack_id and user_id == settings.admin_slack_id:
+                        is_admin = True
+                        logger.debug(f"[i] Admin kontrolü: admin_slack_id eşleşti | User: {user_id}")
+                    else:
+                        # Slack API'den workspace owner kontrolü yap
+                        try:
+                            if hasattr(chat_manager, 'client'):
+                                user_info = chat_manager.client.users_info(user=user_id)
+                                if user_info.get("ok"):
+                                    user = user_info.get("user", {})
+                                    is_owner = user.get("is_owner", False)
+                                    is_admin_flag = user.get("is_admin", False)
+                                    is_admin = is_owner or is_admin_flag
+                                    if is_admin:
+                                        logger.info(f"[i] Admin kontrolü: Workspace owner/admin tespit edildi | User: {user_id} | Owner: {is_owner}, Admin: {is_admin_flag}")
+                        except Exception as e:
+                            logger.warning(f"[!] Workspace owner kontrolü yapılamadı: {e}")
+                
+                if not is_creator and not is_admin:
                     chat_manager.post_ephemeral(
                         channel=channel_id,
                         user=user_id,
-                        text="❌ Sadece challenge sahibi iptal edebilir."
+                        text="❌ Sadece challenge sahibi veya workspace owner/admin iptal edebilir."
                     )
                     return
                 
